@@ -113,17 +113,23 @@ class Cache:
                 self.dados = {}          # cache corrompido nao pode derrubar o run
 
     def ttl_segundos(self, ano):
+        """Segundos de validade, ou None para 'so na entrada, nunca revalida'.
+
+        Sem ano no item, trata como recem-publicado: revalidar a mais e barato,
+        confiar em metrica velha de um paper que talvez seja novo nao e.
+        """
         idade = ANO_ATUAL - ano if ano else 0
         for limite, meses in self.ttl:
-            if idade <= limite:
-                return meses * 30 * 86400
-        return 30 * 86400
+            if limite is None or idade <= limite:
+                return None if meses is None else meses * 30 * 86400
+        return None
 
     def pegar(self, chave, ano):
         entrada = self.dados.get(chave)
         if not entrada:
             return None
-        if time.time() - entrada.get("t", 0) > self.ttl_segundos(ano):
+        ttl = self.ttl_segundos(ano)
+        if ttl is not None and time.time() - entrada.get("t", 0) > ttl:
             return None
         return entrada.get("v")
 

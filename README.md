@@ -38,9 +38,21 @@ do impacto real do artigo.
 
 ## Cache
 
-`~/.cache/zotero-relevancia/openalex.json`, com TTL por idade da publicação:
-3 meses até 2 anos, 6 até 10, 12 acima. Paper novo muda de citação rápido; paper
-velho não. O custo de rede de uma rodada é só o que venceu mais os itens novos.
+`~/.cache/zotero-relevancia/openalex.json`. A revalidação é uma escada por
+idade da publicação — paper novo muda de citação rápido, paper velho não muda
+mais:
+
+| idade | revalida |
+|---|---|
+| menos de 1 ano | a cada 3 meses |
+| 1 a 2 anos | a cada 6 meses |
+| 2 a 5 anos | todo ano |
+| 5 a 15 anos | a cada 2 anos |
+| mais de 15 anos | **só na entrada** — nunca mais consulta |
+
+O custo de rede de uma rodada é só o que venceu mais os itens novos. Item sem
+ano é tratado como recém-publicado: revalidar demais é barato, confiar em
+métrica velha de um paper que talvez seja novo não é.
 
 Se algum request falhar, o script **avisa e sai com código 1** — CSV incompleto
 vira tag errada. Rode de novo antes de taguear.

@@ -191,9 +191,31 @@ class TestCache(unittest.TestCase):
         c.dados["k"] = {"t": time.time() - 10 * 365 * 86400, "v": {"a": 1}}
         self.assertIsNone(c.pegar("k", z.ANO_ATUAL))
 
-    def test_paper_novo_vence_antes_que_paper_velho(self):
+    def test_a_escada_de_revalidacao(self):
         c = z.Cache(self.caminho, CFG)
-        self.assertLess(c.ttl_segundos(z.ANO_ATUAL), c.ttl_segundos(1990))
+        mes = 30 * 86400
+        for idade, meses in ((0, 3), (1, 6), (3, 12), (4, 12), (5, 24), (14, 24)):
+            self.assertEqual(c.ttl_segundos(z.ANO_ATUAL - idade), meses * mes,
+                             "idade %d ano(s)" % idade)
+
+    def test_material_com_mais_de_15_anos_so_na_entrada(self):
+        c = z.Cache(self.caminho, CFG)
+        self.assertIsNone(c.ttl_segundos(z.ANO_ATUAL - 15))
+        self.assertIsNone(c.ttl_segundos(1990))
+
+    def test_entrada_antiga_de_paper_velho_nunca_vence(self):
+        c = z.Cache(self.caminho, CFG)
+        c.dados["k"] = {"t": time.time() - 50 * 365 * 86400, "v": {"a": 1}}
+        self.assertEqual(c.pegar("k", 1990), {"a": 1})
+
+    def test_paper_novo_vence_antes_que_paper_de_meia_idade(self):
+        c = z.Cache(self.caminho, CFG)
+        self.assertLess(c.ttl_segundos(z.ANO_ATUAL),
+                        c.ttl_segundos(z.ANO_ATUAL - 10))
+
+    def test_item_sem_ano_e_tratado_como_novo(self):
+        c = z.Cache(self.caminho, CFG)
+        self.assertEqual(c.ttl_segundos(None), c.ttl_segundos(z.ANO_ATUAL))
 
     def test_cache_corrompido_nao_derruba(self):
         with open(self.caminho, "w") as arq:

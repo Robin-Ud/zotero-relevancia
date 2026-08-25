@@ -7,11 +7,13 @@
   "_nota_mailto": "OpenAlex atende mais rapido no 'polite pool' se voce mandar um email. Fica vazio de proposito: preencha se quiser, e o seu email vai junto em cada request.",
   "mailto": "",
 
-  "_nota_ttl": "Idade da publicacao em anos -> meses de validade do cache. Paper novo muda de citacao rapido; paper velho nao.",
+  "_nota_ttl": "Escada de revalidacao do cache: [idade da publicacao em anos, meses de validade]. Paper novo muda de citacao rapido; paper velho nao muda mais. O segundo null = so na entrada, nunca mais consulta.",
   "ttl_meses": [
-    [2, 3],
-    [10, 6],
-    [9999, 12]
+    [0, 3],
+    [1, 6],
+    [4, 12],
+    [14, 24],
+    [null, null]
   ],
 
   "_nota_pesos": "Somam 10. Os tres eixos da regua original: impacto do artigo na AREA (FWCI), relevancia da REVISTA e relevancia dos AUTORES. Calibrados em 2026-08-25 varrendo as combinacoes contra as tags r-* originais: esta reproduz 43 de 47. Varias outras reproduzem 42, e algumas delas zeram o eixo autor — foram descartadas porque o autor comprovadamente contava na regua original.",
