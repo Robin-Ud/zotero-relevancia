@@ -31,3 +31,8 @@ Os pesos e tetos são reconstrução, não os originais (ver README). Se for
 recalibrar, o método que funcionou foi comparar contra as tags `r-*` do próprio
 Zotero e maximizar a concordância. Não invente cortes "redondos": eles já foram
 chutados uma vez e erraram 41 itens.
+
+**O eixo principal é o FWCI, não a citação bruta.** Isso saiu da memória do
+Matheus ("classificava por área") e foi confirmado medindo: citação bruta
+reproduzia 81% das tags originais, FWCI reproduz 89%. Se alguém propuser voltar
+para `cited_by_count`, essa é a evidência contra.

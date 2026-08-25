@@ -81,6 +81,20 @@ class TestNota(unittest.TestCase):
         it = item(obra=None, fonte=None)
         self.assertEqual(z.pontuar(it), 0.0)
 
+    def test_fwci_manda_no_eixo_principal(self):
+        """FWCI normaliza por area: e ele que pontua, nao a citacao bruta."""
+        nicho = item(fwci=4.0, obra={"cited_by_count": 3})      # pouco citado, alto FWCI
+        popular = item(fwci=0.2, obra={"cited_by_count": 5000})  # muito citado, baixo FWCI
+        z.pontuar(nicho)
+        z.pontuar(popular)
+        self.assertGreater(nicho["score"], popular["score"])
+
+    def test_sem_fwci_cai_para_citacao_por_ano(self):
+        sem = item(fwci=None, ano=z.ANO_ATUAL - 1,
+                   obra={"cited_by_count": int(z.TETO_CIT_ANO * 2)})
+        z.pontuar(sem)
+        self.assertAlmostEqual(sem["score"], z.PESO_CITACOES, places=1)
+
     def test_score_fwci_puro_escala(self):
         self.assertIsNone(z.score_fwci_puro(item(fwci=None)))
         self.assertEqual(z.score_fwci_puro(item(fwci=1.0)), 2.5)

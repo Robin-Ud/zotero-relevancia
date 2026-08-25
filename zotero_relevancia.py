@@ -52,6 +52,7 @@ PESO_CITACOES = CFG["peso_citacoes"]
 PESO_REVISTA = CFG["peso_revista"]
 PESO_AUTOR = CFG["peso_autor"]
 
+TETO_FWCI = CFG["teto_fwci"]
 TETO_CIT_ANO = CFG["teto_cit_ano"]
 TETO_FI = CFG["teto_fi"]
 TETO_H_REVISTA = CFG["teto_h_revista"]
@@ -326,6 +327,7 @@ def citacoes_por_ano(citacoes, ano):
 def pontuar(item):
     obra = item["obra"] or {}
     fonte = item["fonte"] or {}
+    item.setdefault("fwci", None)
     metricas = fonte.get("summary_stats", {})
 
     item["citacoes"] = obra.get("cited_by_count") or 0
@@ -336,7 +338,14 @@ def pontuar(item):
     if item["fi_implausivel"]:
         item["fi_2y"] = 0.0
 
-    eixo_cit = PESO_CITACOES * saturar(item["cit_ano"], TETO_CIT_ANO)
+    # Eixo principal: FWCI, que ja normaliza por area e ano — literatura de nicho
+    # nao e punida por citar pouco em termos absolutos. Sem FWCI (paper fora do
+    # OpenAlex ou novo demais), cai para citacao por ano, que e o que existe.
+    if item["fwci"] is not None:
+        eixo_cit = PESO_CITACOES * saturar(item["fwci"], TETO_FWCI)
+    else:
+        eixo_cit = PESO_CITACOES * saturar(item["cit_ano"], TETO_CIT_ANO)
+
     eixo_rev = PESO_REVISTA * (
         0.6 * saturar(item["fi_2y"], TETO_FI)
         + 0.4 * min(1.0, item["h_revista"] / TETO_H_REVISTA)

@@ -20,16 +20,18 @@
   "peso_autor": 2.0,
 
   "_nota_tetos": "Onde cada eixo satura. Acima do teto nao ganha mais ponto.",
+  "_nota_teto_fwci": "FWCI e o eixo principal: ja vem normalizado por AREA e ano, entao nao penaliza literatura de nicho como a contagem bruta de citacao penaliza. teto 5.0 = cinco vezes a media mundial satura o eixo.",
+  "teto_fwci": 5.0,
   "teto_cit_ano": 20.0,
   "teto_fi": 8.0,
   "teto_h_revista": 200.0,
   "teto_h_autor": 60.0,
   "teto_fi_plausivel": 60.0,
 
-  "_nota_cortes": "Score >= corte define o tier. Abaixo de C cai em D. CALIBRADOS em 2026-08-25 contra as tags r-* que ja estavam no Zotero (saida da regua original, perdida no rm): reproduzem 38 de 47 itens = 81%. Nao sao os numeros originais, sao os que melhor os imitam.",
-  "corte_a": 3.1,
-  "corte_b": 2.1,
-  "corte_c": 1.7,
+  "_nota_cortes": "Score >= corte define o tier. Abaixo de C cai em D. CALIBRADOS em 2026-08-25 contra as tags r-* que ja estavam no Zotero (saida da regua original, perdida no rm): reproduzem 38 de 43 itens = 88%. Nao sao os numeros originais, sao os que melhor os imitam.",
+  "corte_a": 5.8,
+  "corte_b": 3.1,
+  "corte_c": 2.1,
 
   "_nota_fwci": "FWCI de paper com menos de 'fwci_anos_minimos' anos e instavel e vira flag. CORTE_FWCI_IMATURO_UTIL: abaixo disso o descarte merece o marcador r-imaturo (1.0 = media mundial).",
   "fwci_anos_minimos": 2,

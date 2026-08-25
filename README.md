@@ -18,7 +18,7 @@ Três eixos, somando 10 pontos, todos saturados para que um outlier não domine:
 
 | eixo | peso | vem de |
 |---|---|---|
-| citações por ano | 5 | `cited_by_count` ÷ idade |
+| **impacto por área** | 5 | **FWCI** do OpenAlex (fallback: citações ÷ idade) |
 | revista | 3 | 60% fator de impacto 2 anos + 40% h-index do periódico |
 | autor | 2 | maior h-index entre os 10 primeiros autores |
 
@@ -26,8 +26,13 @@ O tier sai do corte (`corte_a/b/c` no `configs.json`). Algumas flags derrubam
 para D direto, independente da nota: `nao_e_paper`, `sem_registro_openalex`,
 `resumo_de_congresso`.
 
-Além do score composto, o CSV traz o **FWCI** puro do OpenAlex (1.0 = média
-mundial da área e do ano). O relatório `COMPOSTO x FWCI PURO` mostra onde os dois
+O eixo principal é o **FWCI** (1.0 = média mundial da área e do ano). Usar FWCI
+em vez de citação bruta é o que impede a régua de punir literatura de nicho: um
+paper de micotoxina em pastagem cita pouco em números absolutos e ainda assim
+pode estar muito acima da média da própria área. Item sem FWCI cai para citações
+por ano, que é o que existe.
+
+O CSV também traz o FWCI cru. O relatório `COMPOSTO x FWCI PURO` mostra onde os dois
 mais divergem — é ali que o prestígio do periódico está puxando a nota para longe
 do impacto real do artigo.
 
@@ -46,7 +51,10 @@ O arquivo original foi perdido no `rm -rf *` de 2026-08-25 e só voltou pela
 metade dos transcripts do Claude (o miolo do cálculo, sem os valores das
 constantes). **Os pesos e tetos são escolha nova.** Os cortes A/B/C foram
 calibrados contra as tags `r-*` que já estavam no Zotero — a saída da régua
-original — e reproduzem 38 de 47 itens, 81%.
+original — e reproduzem 42 de 47 itens, **89%**.
+
+O FWCI como eixo principal não foi chute: o Matheus lembrou que a régua original
+classificava por área, e medir confirmou (81% com citação bruta, 89% com FWCI).
 
 Ou seja: a ordenação é fiel, os números absolutos não são os de antes. Se a
 classificação de algum item parecer errada, o problema provavelmente está nos
