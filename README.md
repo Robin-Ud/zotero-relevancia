@@ -18,9 +18,9 @@ Três eixos, somando 10 pontos, todos saturados para que um outlier não domine:
 
 | eixo | peso | vem de |
 |---|---|---|
-| **impacto por área** | 5 | **FWCI** do OpenAlex (fallback: citações ÷ idade) |
-| revista | 3 | 60% fator de impacto 2 anos + 40% h-index do periódico |
-| autor | 2 | maior h-index entre os 10 primeiros autores |
+| **impacto por área** | 4,5 | **FWCI** do OpenAlex (fallback: citações ÷ idade) |
+| **revista** | 3,0 | 60% fator de impacto 2 anos + 40% h-index do periódico |
+| **autor** | 2,5 | maior h-index entre os 10 primeiros autores |
 
 O tier sai do corte (`corte_a/b/c` no `configs.json`). Algumas flags derrubam
 para D direto, independente da nota: `nao_e_paper`, `sem_registro_openalex`,
@@ -51,10 +51,15 @@ O arquivo original foi perdido no `rm -rf *` de 2026-08-25 e só voltou pela
 metade dos transcripts do Claude (o miolo do cálculo, sem os valores das
 constantes). **Os pesos e tetos são escolha nova.** Os cortes A/B/C foram
 calibrados contra as tags `r-*` que já estavam no Zotero — a saída da régua
-original — e reproduzem 42 de 47 itens, **89%**.
+original — e reproduzem 43 de 47 itens, **91%**.
 
-O FWCI como eixo principal não foi chute: o Matheus lembrou que a régua original
-classificava por área, e medir confirmou (81% com citação bruta, 89% com FWCI).
+Nem os eixos nem os pesos foram chute. O Matheus lembrou que a régua original
+classificava por área e usava também a relevância da revista e a dos autores;
+medir confirmou os três: citação bruta reproduzia 81%, FWCI subiu para 89%, e a
+varredura de pesos fechou em 91% com 4,5 / 3,0 / 2,5.
+
+Com 47 itens de amostra, 91% e 89% distam de um único item — os pesos são a
+melhor leitura disponível, não uma verdade fina. Não vale caçar o último ponto.
 
 Ou seja: a ordenação é fiel, os números absolutos não são os de antes. Se a
 classificação de algum item parecer errada, o problema provavelmente está nos
