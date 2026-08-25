@@ -1,0 +1,58 @@
+{
+  "_comentario": "Caminhos e regua do zotero_relevancia. Mexa aqui, nao no .py.",
+  "banco": "~/Zotero/zotero.sqlite",
+  "dir_csv": "~/etc/docs",
+  "cache": "~/.cache/zotero-relevancia/openalex.json",
+
+  "_nota_mailto": "OpenAlex atende mais rapido no 'polite pool' se voce mandar um email. Fica vazio de proposito: preencha se quiser, e o seu email vai junto em cada request.",
+  "mailto": "",
+
+  "_nota_ttl": "Idade da publicacao em anos -> meses de validade do cache. Paper novo muda de citacao rapido; paper velho nao.",
+  "ttl_meses": [
+    [2, 3],
+    [10, 6],
+    [9999, 12]
+  ],
+
+  "_nota_pesos": "Somam 10. Citacao pesa mais que revista, revista mais que autor.",
+  "peso_citacoes": 5.0,
+  "peso_revista": 3.0,
+  "peso_autor": 2.0,
+
+  "_nota_tetos": "Onde cada eixo satura. Acima do teto nao ganha mais ponto.",
+  "teto_cit_ano": 20.0,
+  "teto_fi": 8.0,
+  "teto_h_revista": 200.0,
+  "teto_h_autor": 60.0,
+  "teto_fi_plausivel": 60.0,
+
+  "_nota_cortes": "Score >= corte define o tier. Abaixo de C cai em D. CALIBRADOS em 2026-08-25 contra as tags r-* que ja estavam no Zotero (saida da regua original, perdida no rm): reproduzem 38 de 47 itens = 81%. Nao sao os numeros originais, sao os que melhor os imitam.",
+  "corte_a": 3.1,
+  "corte_b": 2.1,
+  "corte_c": 1.7,
+
+  "_nota_fwci": "FWCI de paper com menos de 'fwci_anos_minimos' anos e instavel e vira flag. CORTE_FWCI_IMATURO_UTIL: abaixo disso o descarte merece o marcador r-imaturo (1.0 = media mundial).",
+  "fwci_anos_minimos": 2,
+  "corte_fwci_imaturo_util": 1.0,
+
+  "_nota_tipos": "Tipos do OpenAlex que contam como paper. Fora daqui vira flag nao_e_paper.",
+  "tipos_de_paper": [
+    "article",
+    "review",
+    "preprint",
+    "book-chapter",
+    "book",
+    "dissertation",
+    "report"
+  ],
+
+  "_nota_congresso": "Substring no nome da revista que denuncia caderno de resumos.",
+  "marcas_de_congresso": [
+    "abstract",
+    "supplement",
+    "proceedings",
+    "meeting",
+    "congress",
+    "annals of the "
+  ]
+}
