@@ -48,6 +48,7 @@ def carregar_config(caminho=None):
 
 CFG = carregar_config()
 
+PESO_FWCI = CFG["peso_fwci"]
 PESO_CITACOES = CFG["peso_citacoes"]
 PESO_REVISTA = CFG["peso_revista"]
 PESO_AUTOR = CFG["peso_autor"]
@@ -63,8 +64,13 @@ CORTE_A = CFG["corte_a"]
 CORTE_B = CFG["corte_b"]
 CORTE_C = CFG["corte_c"]
 
-FWCI_ANOS_MINIMOS = CFG["fwci_anos_minimos"]
+CORTE_FWCI_A = CFG["corte_fwci_a"]
+CORTE_FWCI_B = CFG["corte_fwci_b"]
+CORTE_FWCI_C = CFG["corte_fwci_c"]
+
+ANOS_FWCI_IMATURO = CFG["anos_fwci_imaturo"]
 CORTE_FWCI_IMATURO_UTIL = CFG["corte_fwci_imaturo_util"]
+TIPOS_FONTE_VALIDOS = tuple(CFG["tipos_fonte_validos"])
 
 
 # --------------------------------------------------------------------------
@@ -180,7 +186,7 @@ class OpenAlex:
 
     def obra(self, doi, titulo, ano):
         """Work por DOI; sem DOI, tenta casar por titulo exato normalizado."""
-        chave = "work:doi:" + doi if doi else "work:tit:" + normalizar_titulo(titulo)
+        chave = "work2:doi:" + doi if doi else "work2:tit:" + normalizar_titulo(titulo)
         em_cache = self.cache.pegar(chave, ano)
         if em_cache is not None:
             return em_cache or None
@@ -216,9 +222,12 @@ class OpenAlex:
     def _enxugar_obra(dados):
         """Guarda so o que a nota usa — o work cru do OpenAlex passa de 100 KB."""
         local = (dados.get("primary_location") or {}).get("source") or {}
+        pct = dados.get("citation_normalized_percentile") or {}
         return {
             "cited_by_count": dados.get("cited_by_count") or 0,
             "fwci": dados.get("fwci"),
+            "percentil": pct.get("value"),
+            "source_type": local.get("type") or "",
             "type": dados.get("type") or "",
             "publication_year": dados.get("publication_year"),
             "source_id": local.get("id") or "",
@@ -232,13 +241,18 @@ class OpenAlex:
     def fonte(self, source_id, ano):
         if not source_id:
             return {}
-        chave = "src:" + source_id
+        chave = "src2:" + source_id
         em_cache = self.cache.pegar(chave, ano)
         if em_cache is not None:
             return em_cache
         dados = self._get("sources/" + source_id.rsplit("/", 1)[-1])
-        enxuto = {"summary_stats": (dados or {}).get("summary_stats") or {},
-                  "display_name": (dados or {}).get("display_name") or ""}
+        # O OpenAlex as vezes devolve como "fonte" um agregador — o DOAJ aparece
+        # como source com h_index 215. So type='journal' conta como revista.
+        tipo = (dados or {}).get("type") or ""
+        valida = tipo in TIPOS_FONTE_VALIDOS
+        enxuto = {"summary_stats": ((dados or {}).get("summary_stats") or {}) if valida else {},
+                  "display_name": (dados or {}).get("display_name") or "",
+                  "type": tipo, "valida": valida}
         if dados is not None:
             self.cache.guardar(chave, enxuto)
         return enxuto
@@ -316,6 +330,8 @@ def coletar_itens(con):
             "fonte": None,
             "h_autor_max": 0,
             "fwci": None,
+            "percentil": None,
+            "tier_fwci": "",
             "flags": [],
         })
     return itens
@@ -328,6 +344,25 @@ def coletar_itens(con):
 def citacoes_por_ano(citacoes, ano):
     idade = max(1, ANO_ATUAL - ano + 1) if ano else 1
     return citacoes / float(idade)
+
+
+def fwci_imaturo(ano):
+    """Paper deste ano ou do ano passado ainda nao teve tempo de acumular citacao."""
+    return bool(ano) and (ANO_ATUAL - ano) <= ANOS_FWCI_IMATURO
+
+
+def usa_fwci(item):
+    """A imaturidade so desqualifica o FWCI quando ele e BAIXO.
+
+    Paper de 2025 com FWCI 63 ja provou; paper de 2026 com FWCI 0 so nao teve
+    tempo. Descartar os dois derrubaria o "Digital agriculture adoption", que e
+    tier A de verdade.
+    """
+    if item["fwci"] is None:
+        return False
+    if fwci_imaturo(item["ano"]) and item["fwci"] < CORTE_FWCI_IMATURO_UTIL:
+        return False
+    return True
 
 
 def pontuar(item):
@@ -344,32 +379,40 @@ def pontuar(item):
     if item["fi_implausivel"]:
         item["fi_2y"] = 0.0
 
-    # Eixo principal: FWCI, que ja normaliza por area e ano — literatura de nicho
-    # nao e punida por citar pouco em termos absolutos. Sem FWCI (paper fora do
-    # OpenAlex ou novo demais), cai para citacao por ano, que e o que existe.
-    if item["fwci"] is not None:
-        eixo_cit = PESO_CITACOES * saturar(item["fwci"], TETO_FWCI)
-    else:
-        eixo_cit = PESO_CITACOES * saturar(item["cit_ano"], TETO_CIT_ANO)
-
-    eixo_rev = PESO_REVISTA * (
+    nota_cit = saturar(item["cit_ano"], TETO_CIT_ANO)
+    nota_rev = (
         0.6 * saturar(item["fi_2y"], TETO_FI)
         + 0.4 * min(1.0, item["h_revista"] / TETO_H_REVISTA)
     )
-    eixo_aut = PESO_AUTOR * min(1.0, item["h_autor_max"] / TETO_H_AUTOR)
+    nota_aut = min(1.0, item["h_autor_max"] / TETO_H_AUTOR)
 
-    item["score"] = round(eixo_cit + eixo_rev + eixo_aut, 1)
+    # Eixos presentes neste item. Quando o FWCI nao entra, os 35 pontos dele sao
+    # redistribuidos entre os outros tres em vez de contarem zero — senao tese e
+    # livro, que nunca tem FWCI, seriam punidos duas vezes pela mesma ausencia.
+    eixos = []
+    if usa_fwci(item):
+        eixos.append((PESO_FWCI, saturar(item["fwci"], TETO_FWCI)))
+    eixos.append((PESO_CITACOES, nota_cit))
+    eixos.append((PESO_REVISTA, nota_rev))
+    eixos.append((PESO_AUTOR, nota_aut))
+
+    total = sum(peso for peso, _ in eixos)
+    item["score"] = round(
+        sum(peso * nota for peso, nota in eixos) / total * 100, 1)
     return item["score"]
 
 
-def score_fwci_puro(item):
-    """Nota alternativa so com FWCI, para comparar com o composto.
-
-    FWCI 1.0 = media mundial da area e do ano. Mapeado na mesma escala de 0 a 10.
-    """
-    if item["fwci"] is None:
-        return None
-    return round(min(10.0, item["fwci"] * 2.5), 1)
+def classificar_fwci(item):
+    """Segunda opiniao: so o FWCI, sem mistura com revista nem autor."""
+    if not usa_fwci(item):
+        return ""
+    if item["fwci"] >= CORTE_FWCI_A:
+        return "A"
+    if item["fwci"] >= CORTE_FWCI_B:
+        return "B"
+    if item["fwci"] >= CORTE_FWCI_C:
+        return "C"
+    return "D"
 
 
 def marcar_flags(itens, cfg):
@@ -388,12 +431,18 @@ def marcar_flags(itens, cfg):
         if obra is None:
             flags.append("sem_registro_openalex")
         else:
-            if obra.get("type") and obra["type"] not in cfg["tipos_de_paper"]:
-                flags.append("nao_e_paper")
-            if item["fwci"] is not None:
-                idade = ANO_ATUAL - (item["ano"] or ANO_ATUAL)
-                if idade < FWCI_ANOS_MINIMOS:
-                    flags.append("fwci_imaturo")
+            tipo_oa = obra.get("type")
+            if tipo_oa and tipo_oa not in cfg["tipos_de_paper"]:
+                # Literatura cinzenta e base de dados existem, mas a regua nao
+                # sabe medi-las: viram r-sem-metrica em vez de r-d.
+                if tipo_oa in cfg.get("tipos_literatura_cinzenta", []):
+                    flags.append("literatura_cinzenta")
+                else:
+                    flags.append("nao_e_paper")
+            if item["fwci"] is not None and fwci_imaturo(item["ano"]):
+                flags.append("fwci_imaturo")
+            if item["fonte"] and not item["fonte"].get("valida", True):
+                flags.append("fonte_nao_e_revista")
 
         if not item["doi"]:
             flags.append("sem_doi")
@@ -414,6 +463,8 @@ def marcar_flags(itens, cfg):
 
 
 def classificar(item):
+    if "literatura_cinzenta" in item["flags"]:
+        return "D"          # o tier vai para D, mas o zotero_tags le a flag e poe r-sem-metrica
     if "nao_e_paper" in item["flags"] or "sem_registro_openalex" in item["flags"]:
         return "D"
     if "resumo_de_congresso" in item["flags"]:
@@ -432,9 +483,9 @@ def classificar(item):
 # --------------------------------------------------------------------------
 
 COLUNAS = [
-    "tier", "score", "fwci", "score_fwci", "citacoes", "citacoes_por_ano",
-    "revista", "fi_2y", "h_revista", "h_autor_max", "ano", "tipo", "colecoes",
-    "flags", "titulo", "doi", "item_key",
+    "tier", "tier_fwci", "fwci", "percentil", "score", "citacoes",
+    "citacoes_por_ano", "revista", "fi_2y", "h_revista", "h_autor_max",
+    "ano", "tipo", "colecoes", "flags", "titulo", "doi", "item_key",
 ]
 
 
@@ -445,9 +496,10 @@ def escrever_csv(itens, caminho):
         escritor.writerow(COLUNAS)
         for item in itens:
             escritor.writerow([
-                item["tier"], item["score"],
+                item["tier"], item["tier_fwci"],
                 "" if item["fwci"] is None else round(item["fwci"], 2),
-                "" if item["score_fwci"] is None else item["score_fwci"],
+                "" if item["percentil"] is None else round(item["percentil"], 1),
+                item["score"],
                 item["citacoes"], round(item["cit_ano"], 1), item["revista"],
                 item["fi_2y"], item["h_revista"], item["h_autor_max"],
                 item["ano"] or "", item["tipo"], "; ".join(sorted(item["colecoes"])),
@@ -464,21 +516,24 @@ def resumir(itens, caminho):
         "%s=%d" % (t, contagem.get(t, 0)) for t in "ABCD"))
 
 
-def divergencia_fwci(itens, quantos=10):
-    """Onde o prestigio da revista puxa a nota para longe do impacto real.
+def divergencia_fwci(itens, quantos=12):
+    """Onde o composto e o FWCI puro discordam de tier.
 
-    Score composto alto e FWCI baixo = o paper esta pegando carona no periodico.
+    Score alto com tier_fwci baixo = o paper esta pegando carona no prestigio da
+    revista. O contrario = paper de nicho que a revista nao ajuda.
     """
-    candidatos = [i for i in itens if i["score_fwci"] is not None]
-    candidatos.sort(key=lambda i: abs(i["score"] - i["score_fwci"]), reverse=True)
-    if not candidatos:
+    ordem = {"A": 3, "B": 2, "C": 1, "D": 0}
+    div = [i for i in itens if i["tier_fwci"] and i["tier_fwci"] != i["tier"]]
+    div.sort(key=lambda i: abs(ordem[i["tier"]] - ordem[i["tier_fwci"]]), reverse=True)
+    if not div:
         return
-    print("\nCOMPOSTO x FWCI PURO — maiores divergencias")
-    print("%-6s %-6s %-6s  %s" % ("comp", "fwci", "delta", "titulo"))
-    for item in candidatos[:quantos]:
-        delta = item["score"] - item["score_fwci"]
-        print("%-6.1f %-6.1f %+-6.1f %s" % (
-            item["score"], item["score_fwci"], delta, item["titulo"][:70]))
+    print("\nCOMPOSTO x FWCI PURO — onde os dois discordam (%d itens)" % len(div))
+    print("%-5s %-5s %-7s %-7s  %s" % ("tier", "fwci", "score", "FWCI", "titulo"))
+    for item in div[:quantos]:
+        print("%-5s %-5s %-7.1f %-7s %s" % (
+            item["tier"], item["tier_fwci"], item["score"],
+            "-" if item["fwci"] is None else round(item["fwci"], 2),
+            item["titulo"][:58]))
 
 
 # --------------------------------------------------------------------------
@@ -491,6 +546,7 @@ def processar(itens, api):
         item["obra"] = obra
         if obra:
             item["fwci"] = obra.get("fwci")
+            item["percentil"] = obra.get("percentil")
             if not item["ano"]:
                 item["ano"] = obra.get("publication_year")
             if not item["revista"]:
@@ -499,7 +555,7 @@ def processar(itens, api):
             item["h_autor_max"] = api.h_autor_max(obra.get("author_ids") or [],
                                                   item["ano"])
         pontuar(item)
-        item["score_fwci"] = score_fwci_puro(item)
+        item["tier_fwci"] = classificar_fwci(item)
         if numero % 25 == 0:
             sys.stderr.write("  %d/%d\n" % (numero, len(itens)))
 

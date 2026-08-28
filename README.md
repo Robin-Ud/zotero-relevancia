@@ -9,32 +9,53 @@ Quem consome é o [`zotero-tags`](../zotero-tags), que transforma o tier na tag
 ```bash
 python3 zotero_relevancia.py            # roda e escreve o CSV do dia
 python3 zotero_relevancia.py --offline  # só o cache, sem tocar a rede
-python3 zotero_relevancia_test.py       # 33 testes, sem rede
+python3 zotero_relevancia_test.py       # 42 testes, sem rede
 ```
 
 ## Como a nota é feita
 
-Três eixos, somando 10 pontos, todos saturados para que um outlier não domine:
+Quatro eixos, escala **0–100**, todos saturados para que um outlier não domine:
 
 | eixo | peso | vem de |
 |---|---|---|
-| **impacto por área** | 4,5 | **FWCI** do OpenAlex (fallback: citações ÷ idade) |
-| **revista** | 3,0 | 60% fator de impacto 2 anos + 40% h-index do periódico |
-| **autor** | 2,5 | maior h-index entre os 10 primeiros autores |
+| **FWCI** | 35 | impacto do artigo na própria área (1,0 = média mundial) |
+| revista | 25 | 60% fator de impacto 2 anos + 40% h-index do periódico |
+| citações | 20 | `cited_by_count` ÷ idade |
+| autor | 20 | maior h-index entre os 10 primeiros autores |
 
-O tier sai do corte (`corte_a/b/c` no `configs.json`). Algumas flags derrubam
-para D direto, independente da nota: `nao_e_paper`, `sem_registro_openalex`,
-`resumo_de_congresso`.
+O FWCI leva o maior peso porque é a única métrica aqui que compara agronomia
+tropical com machine learning de forma justa. A revista pesa menos que ele de
+propósito: fator de impacto não mede o paper — é a crítica da DORA.
 
-O eixo principal é o **FWCI** (1.0 = média mundial da área e do ano). Usar FWCI
-em vez de citação bruta é o que impede a régua de punir literatura de nicho: um
-paper de micotoxina em pastagem cita pouco em números absolutos e ainda assim
-pode estar muito acima da média da própria área. Item sem FWCI cai para citações
-por ano, que é o que existe.
+**Quando o FWCI não entra, os 35 pontos são redistribuídos** entre os outros
+três, em vez de contarem zero. Senão tese e livro, que nunca têm FWCI, seriam
+punidos duas vezes pela mesma ausência.
 
-O CSV também traz o FWCI cru. O relatório `COMPOSTO x FWCI PURO` mostra onde os dois
-mais divergem — é ali que o prestígio do periódico está puxando a nota para longe
-do impacto real do artigo.
+O FWCI de paper muito novo é ruído — mas a imaturidade **só desqualifica o FWCI
+quando ele é baixo**. Paper de 2025 com FWCI 63 já provou; paper de 2026 com
+FWCI 0 só não teve tempo.
+
+Tiers pelos cortes 62 / 40 / 20. Algumas flags derrubam para D independente da
+nota: `nao_e_paper`, `sem_registro_openalex`, `resumo_de_congresso`.
+
+### Segunda opinião: `tier_fwci`
+
+O CSV traz uma segunda classificação, só pelo FWCI (cortes 3,0 / 1,5 / 0,8), sem
+mistura com revista nem autor. O relatório `COMPOSTO x FWCI PURO` lista onde as
+duas discordam: `tier B` com `tier_fwci A` é paper forte na área que o prestígio
+da revista não acompanha; o contrário é carona no periódico.
+
+Também vai a coluna `percentil` (o `citation_normalized_percentile` do
+OpenAlex), mais legível que o FWCI cru para conversar sobre um artigo.
+
+### Armadilhas do OpenAlex já tratadas
+
+- **Agregador vindo como fonte.** O DOAJ aparece como `source` com h-index 215.
+  Só `type='journal'` conta como revista (flag `fonte_nao_e_revista`).
+- **Fator de impacto absurdo.** A *Pakistan J. of Agric. Sciences* vem com 823:
+  acima de `teto_fi_plausivel` (50) é erro de dados, não revista boa, e zera.
+- **Literatura cinzenta não é demérito.** Boletim da Embrapa vem como `other`;
+  vira `r-sem-metrica` ("não consigo avaliar"), nunca `r-d` ("avaliei e é fraco").
 
 ## Cache
 
@@ -65,14 +86,6 @@ constantes). **Os pesos e tetos são escolha nova.** Os cortes A/B/C foram
 calibrados contra as tags `r-*` que já estavam no Zotero — a saída da régua
 original — e reproduzem 43 de 47 itens, **91%**.
 
-Nem os eixos nem os pesos foram chute. O Matheus lembrou que a régua original
-classificava por área e usava também a relevância da revista e a dos autores;
-medir confirmou os três: citação bruta reproduzia 81%, FWCI subiu para 89%, e a
-varredura de pesos fechou em 91% com 4,5 / 3,0 / 2,5.
 
-Com 47 itens de amostra, 91% e 89% distam de um único item — os pesos são a
-melhor leitura disponível, não uma verdade fina. Não vale caçar o último ponto.
 
-Ou seja: a ordenação é fiel, os números absolutos não são os de antes. Se a
-classificação de algum item parecer errada, o problema provavelmente está nos
-pesos/tetos do `configs.json`, não no item.
+

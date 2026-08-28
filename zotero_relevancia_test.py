@@ -67,6 +67,42 @@ class TestNota(unittest.TestCase):
         self.assertTrue(it["fi_implausivel"])
         self.assertEqual(it["fi_2y"], 0.0)
 
+    def test_score_e_escala_0_100(self):
+        it = item(fwci=z.TETO_FWCI, obra={"cited_by_count": 100000},
+                  fonte={"summary_stats": {"2yr_mean_citedness": z.TETO_FI,
+                                           "h_index": z.TETO_H_REVISTA}},
+                  h_autor_max=z.TETO_H_AUTOR)
+        self.assertAlmostEqual(z.pontuar(it), 100.0, places=1)
+
+    def test_sem_fwci_os_35_pontos_sao_redistribuidos(self):
+        """Tese e livro nunca tem FWCI; nao podem ser punidos duas vezes."""
+        base = dict(obra={"cited_by_count": 100000}, ano=2000,
+                    fonte={"summary_stats": {"2yr_mean_citedness": z.TETO_FI,
+                                             "h_index": z.TETO_H_REVISTA}},
+                    h_autor_max=z.TETO_H_AUTOR)
+        sem = item(fwci=None, **base)
+        self.assertAlmostEqual(z.pontuar(sem), 100.0, places=1)
+
+    def test_imaturo_com_fwci_alto_ainda_conta(self):
+        """Paper de 2026 com FWCI 63 ja provou; com FWCI 0 so nao teve tempo."""
+        alto = item(fwci=63.0, ano=z.ANO_ATUAL)
+        baixo = item(fwci=0.0, ano=z.ANO_ATUAL)
+        self.assertTrue(z.usa_fwci(alto))
+        self.assertFalse(z.usa_fwci(baixo))
+
+    def test_tier_fwci_usa_os_cortes_proprios(self):
+        self.assertEqual(z.classificar_fwci(item(fwci=z.CORTE_FWCI_A, ano=2000)), "A")
+        self.assertEqual(z.classificar_fwci(item(fwci=z.CORTE_FWCI_B, ano=2000)), "B")
+        self.assertEqual(z.classificar_fwci(item(fwci=z.CORTE_FWCI_C, ano=2000)), "C")
+        self.assertEqual(z.classificar_fwci(item(fwci=0.0, ano=2000)), "D")
+        self.assertEqual(z.classificar_fwci(item(fwci=None)), "")
+
+    def test_literatura_cinzenta_nao_e_nao_e_paper(self):
+        itens = [item(obra={"type": "other"})]
+        z.marcar_flags(itens, CFG)
+        self.assertIn("literatura_cinzenta", itens[0]["flags"])
+        self.assertNotIn("nao_e_paper", itens[0]["flags"])
+
     def test_score_nunca_passa_da_soma_dos_pesos(self):
         it = item(
             obra={"cited_by_count": 100000},
@@ -74,31 +110,15 @@ class TestNota(unittest.TestCase):
                                      "h_index": z.TETO_H_REVISTA}},
             h_autor_max=z.TETO_H_AUTOR * 10)
         z.pontuar(it)
-        teto = z.PESO_CITACOES + z.PESO_REVISTA + z.PESO_AUTOR
-        self.assertLessEqual(it["score"], teto)
+        self.assertLessEqual(it["score"], 100.0)
 
     def test_item_sem_nada_pontua_zero(self):
         it = item(obra=None, fonte=None)
         self.assertEqual(z.pontuar(it), 0.0)
 
-    def test_fwci_manda_no_eixo_principal(self):
-        """FWCI normaliza por area: e ele que pontua, nao a citacao bruta."""
-        nicho = item(fwci=4.0, obra={"cited_by_count": 3})      # pouco citado, alto FWCI
-        popular = item(fwci=0.2, obra={"cited_by_count": 5000})  # muito citado, baixo FWCI
-        z.pontuar(nicho)
-        z.pontuar(popular)
-        self.assertGreater(nicho["score"], popular["score"])
-
-    def test_sem_fwci_cai_para_citacao_por_ano(self):
-        sem = item(fwci=None, ano=z.ANO_ATUAL - 1,
-                   obra={"cited_by_count": int(z.TETO_CIT_ANO * 2)})
-        z.pontuar(sem)
-        self.assertAlmostEqual(sem["score"], z.PESO_CITACOES, places=1)
-
-    def test_score_fwci_puro_escala(self):
-        self.assertIsNone(z.score_fwci_puro(item(fwci=None)))
-        self.assertEqual(z.score_fwci_puro(item(fwci=1.0)), 2.5)
-        self.assertEqual(z.score_fwci_puro(item(fwci=100.0)), 10.0)
+    def test_fwci_e_o_maior_eixo(self):
+        self.assertGreater(z.PESO_FWCI, z.PESO_REVISTA)
+        self.assertGreater(z.PESO_FWCI, z.PESO_CITACOES)
 
 
 class TestFlags(unittest.TestCase):
@@ -108,7 +128,7 @@ class TestFlags(unittest.TestCase):
         self.assertIn("sem_registro_openalex", itens[0]["flags"])
 
     def test_tipo_fora_da_lista_vira_nao_e_paper(self):
-        itens = [item(obra={"type": "dataset"})]
+        itens = [item(obra={"type": "paratext"})]
         z.marcar_flags(itens, CFG)
         self.assertIn("nao_e_paper", itens[0]["flags"])
 
@@ -158,21 +178,21 @@ class TestFlags(unittest.TestCase):
 
 class TestClassificar(unittest.TestCase):
     def test_cortes(self):
-        for score, tier in ((10.0, "A"), (z.CORTE_A, "A"), (z.CORTE_B, "B"),
+        for score, tier in ((100.0, "A"), (z.CORTE_A, "A"), (z.CORTE_B, "B"),
                             (z.CORTE_C, "C"), (0.0, "D")):
             self.assertEqual(z.classificar(item(flags=[], score=score)), tier)
 
     def test_nao_e_paper_cai_para_d_mesmo_com_nota_alta(self):
         self.assertEqual(
-            z.classificar(item(flags=["nao_e_paper"], score=10.0)), "D")
+            z.classificar(item(flags=["nao_e_paper"], score=100.0)), "D")
 
     def test_sem_openalex_cai_para_d(self):
         self.assertEqual(
-            z.classificar(item(flags=["sem_registro_openalex"], score=10.0)), "D")
+            z.classificar(item(flags=["sem_registro_openalex"], score=100.0)), "D")
 
     def test_resumo_de_congresso_cai_para_d(self):
         self.assertEqual(
-            z.classificar(item(flags=["resumo_de_congresso"], score=9.0)), "D")
+            z.classificar(item(flags=["resumo_de_congresso"], score=90.0)), "D")
 
 
 class TestCache(unittest.TestCase):

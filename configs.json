@@ -1,7 +1,7 @@
 {
   "_comentario": "Caminhos e regua do zotero_relevancia. Mexa aqui, nao no .py.",
   "banco": "~/Zotero/zotero.sqlite",
-  "dir_csv": "~/etc/docs",
+  "dir_csv": "~/deving/zotero-relevancia/saida",
   "cache": "~/.cache/zotero-relevancia/openalex.json",
 
   "_nota_mailto": "OpenAlex atende mais rapido no 'polite pool' se voce mandar um email. Fica vazio de proposito: preencha se quiser, e o seu email vai junto em cada request.",
@@ -16,47 +16,49 @@
     [null, null]
   ],
 
-  "_nota_pesos": "Somam 10. Os tres eixos da regua original: impacto do artigo na AREA (FWCI), relevancia da REVISTA e relevancia dos AUTORES. Calibrados em 2026-08-25 varrendo as combinacoes contra as tags r-* originais: esta reproduz 43 de 47. Varias outras reproduzem 42, e algumas delas zeram o eixo autor — foram descartadas porque o autor comprovadamente contava na regua original.",
-  "peso_citacoes": 4.5,
-  "peso_revista": 3.0,
-  "peso_autor": 2.5,
+  "_nota_pesos": "Escala 0-100, quatro eixos. O FWCI leva o maior peso porque e a unica metrica aqui que compara agronomia tropical com machine learning de forma justa. A revista caiu de 40 para 25: fator de impacto nao mede o paper — e a critica da DORA.",
+  "peso_fwci": 35.0,
+  "peso_citacoes": 20.0,
+  "peso_revista": 25.0,
+  "peso_autor": 20.0,
 
   "_nota_tetos": "Onde cada eixo satura. Acima do teto nao ganha mais ponto.",
-  "_nota_teto_fwci": "FWCI e o eixo principal: ja vem normalizado por AREA e ano, entao nao penaliza literatura de nicho como a contagem bruta de citacao penaliza. teto 5.0 = cinco vezes a media mundial satura o eixo.",
-  "teto_fwci": 5.0,
+  "teto_fwci": 3.0,
   "teto_cit_ano": 20.0,
-  "teto_fi": 8.0,
-  "teto_h_revista": 200.0,
-  "teto_h_autor": 60.0,
-  "teto_fi_plausivel": 60.0,
+  "teto_fi": 15.0,
+  "teto_h_revista": 400.0,
+  "teto_h_autor": 80.0,
+  "_nota_fi_plausivel": "2yr_mean_citedness acima disso e erro de dados, nao revista boa: a Pakistan J. of Agric. Sciences vem com 823.",
+  "teto_fi_plausivel": 50.0,
 
-  "_nota_cortes": "Score >= corte define o tier. Abaixo de C cai em D. CALIBRADOS em 2026-08-25 contra as tags r-* que ja estavam no Zotero (saida da regua original, perdida no rm): reproduzem 43 de 47 itens = 91%. Nao sao os numeros originais, sao os que melhor os imitam — e 47 itens e amostra pequena, entao nao vale caçar o ultimo ponto percentual.",
-  "corte_a": 5.6,
-  "corte_b": 3.2,
-  "corte_c": 2.4,
+  "_nota_cortes": "Cortes ORIGINAIS da regua, recuperados dos transcripts em 2026-08-28. Medidos contra as tags r-* que estavam no Zotero, reproduzem 34 de 47 (72%) — cortes calibrados chegariam a 96% (A>=49.5 B>=28.5 C>=12.5). Mantidos nos valores originais por decisao do Matheus; trocar aqui se mudar de ideia.",
+  "corte_a": 62.0,
+  "corte_b": 40.0,
+  "corte_c": 20.0,
 
-  "_nota_fwci": "FWCI de paper com menos de 'fwci_anos_minimos' anos e instavel e vira flag. CORTE_FWCI_IMATURO_UTIL: abaixo disso o descarte merece o marcador r-imaturo (1.0 = media mundial).",
-  "fwci_anos_minimos": 2,
+  "_nota_cortes_fwci": "Cortes do tier_fwci, em multiplos da media mundial da area (FWCI 1.0 = na media). Segunda opiniao, sem mistura com revista nem autor.",
+  "corte_fwci_a": 3.0,
+  "corte_fwci_b": 1.5,
+  "corte_fwci_c": 0.8,
+
+  "_nota_fwci_imaturo": "Paper deste ano ou do ano passado ainda nao teve tempo de acumular citacao; o FWCI dele e ruido (o PickAMoo, de 2026, da 0.00). MAS a imaturidade so desqualifica o FWCI quando ele e BAIXO: paper de 2025 com FWCI 63 ja provou, paper de 2026 com FWCI 0 so nao teve tempo. Descartar os dois derrubaria o 'Digital agriculture adoption', que e tier A de verdade.",
+  "anos_fwci_imaturo": 1,
   "corte_fwci_imaturo_util": 1.0,
 
-  "_nota_tipos": "Tipos do OpenAlex que contam como paper. Fora daqui vira flag nao_e_paper.",
+  "_nota_fonte": "O OpenAlex as vezes devolve como 'fonte' um agregador — o DOAJ aparece como source com h_index 215. So type='journal' conta como revista.",
+  "tipos_fonte_validos": ["journal"],
+
+  "_nota_tipos": "Tipos do OpenAlex que a regua sabe avaliar. 'editorial' e 'letter' entram porque Policy Forum e Perspective da Science saem assim e sao conteudo cientifico de verdade — um deles tem 331 citacoes.",
   "tipos_de_paper": [
-    "article",
-    "review",
-    "preprint",
-    "book-chapter",
-    "book",
-    "dissertation",
-    "report"
+    "article", "review", "preprint", "book-chapter",
+    "book", "dissertation", "report", "editorial", "letter"
   ],
+
+  "_nota_cinzenta": "Tipos que existem no OpenAlex mas que a regua nao sabe medir: literatura cinzenta (boletim da Embrapa vem como 'other') e base de dados. Viram r-sem-metrica, NAO r-d. A diferenca importa: r-d diz 'avaliei e e fraco', r-sem-metrica diz 'nao consigo avaliar'. Literatura cinzenta nao e demerito.",
+  "tipos_literatura_cinzenta": ["other", "dataset"],
 
   "_nota_congresso": "Substring no nome da revista que denuncia caderno de resumos.",
   "marcas_de_congresso": [
-    "abstract",
-    "supplement",
-    "proceedings",
-    "meeting",
-    "congress",
-    "annals of the "
+    "abstract", "supplement", "proceedings", "meeting", "congress", "annals of the "
   ]
 }

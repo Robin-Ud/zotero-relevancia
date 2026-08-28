@@ -27,12 +27,26 @@ uma delas quebra o taguear silenciosamente — o teste
 
 ## Ao mexer na régua
 
-Os pesos e tetos são reconstrução, não os originais (ver README). Se for
-recalibrar, o método que funcionou foi comparar contra as tags `r-*` do próprio
-Zotero e maximizar a concordância. Não invente cortes "redondos": eles já foram
-chutados uma vez e erraram 41 itens.
+**Os pesos, tetos e cortes são os ORIGINAIS**, recuperados dos transcripts em
+28/08/2026 — não são calibração nem chute. Não "arredonde" nenhum deles sem
+motivo forte: cada um tem uma justificativa registrada no `configs.json` e no
+`contexto.md`.
 
-**O eixo principal é o FWCI, não a citação bruta.** Isso saiu da memória do
-Matheus ("classificava por área") e foi confirmado medindo: citação bruta
-reproduzia 81% das tags originais, FWCI reproduz 89%. Se alguém propuser voltar
-para `cited_by_count`, essa é a evidência contra.
+Se precisar recalibrar, o método é comparar contra as tags `r-*` do próprio
+Zotero (elas são a saída da régua) e maximizar a concordância. Foi assim que se
+mediu que os cortes originais dão 72% e que o teto possível é 96%.
+
+**Nunca troque o FWCI por `cited_by_count`.** Foi medido: citação bruta reproduz
+81% das tags originais, o FWCI como eixo principal chega a 96%. O FWCI é a única
+métrica que compara agronomia tropical com machine learning de forma justa.
+
+## Sobre a divergência de 72%
+
+Com os cortes originais, ~10 itens que estão tagueados `r-a` no Zotero saem como
+`r-b`: são papers de FWCI alto (3 a 17) que ficam entre 46 e 59 pontos, logo
+abaixo do corte A=62. Provavelmente falta algo da fórmula original que não foi
+recuperado, ou as métricas mudaram desde 19/08 (as tags são daquela data).
+
+Isso é **conhecido e aceito** — decisão do Matheus em 28/08. Não "conserte"
+mexendo nos cortes sem falar com ele. O `tier_fwci` existe justamente para
+mostrar esses casos.
