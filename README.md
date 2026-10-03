@@ -3,7 +3,7 @@
 Régua de relevância bibliométrica da biblioteca do Zotero. Lê o `zotero.sqlite`,
 busca métrica no OpenAlex e escreve um CSV com um tier **A/B/C/D** por item.
 
-Quem consome é o [`zotero-tags`](../zotero-tags), que transforma o tier na tag
+Quem consome é o [`zotero-tags`](../tags), que transforma o tier na tag
 `r-*`. Os dois juntos são o motor da skill `zotero-tags`.
 
 ```bash

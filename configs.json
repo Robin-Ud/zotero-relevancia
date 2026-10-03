@@ -1,7 +1,7 @@
 {
   "_comentario": "Caminhos e regua do zotero_relevancia. Mexa aqui, nao no .py.",
   "banco": "~/Zotero/zotero.sqlite",
-  "dir_csv": "~/deving/zotero-relevancia/saida",
+  "dir_csv": "~/deving/zotero/relevancia/saida",
   "cache": "~/.cache/zotero-relevancia/openalex.json",
 
   "_nota_mailto": "OpenAlex atende mais rapido no 'polite pool' se voce mandar um email. Fica vazio de proposito: preencha se quiser, e o seu email vai junto em cada request.",
