@@ -42,7 +42,8 @@ def carregar_config(caminho=None):
     with open(caminho or os.path.join(AQUI, "configs.json"), encoding="utf-8") as arq:
         cfg = json.load(arq)
     for chave in ("banco", "dir_csv", "cache"):
-        cfg[chave] = os.path.expanduser(cfg[chave])
+        # relativo vale a partir da pasta do script (ex.: "saida")
+        cfg[chave] = os.path.join(AQUI, os.path.expanduser(cfg[chave]))
     return cfg
 
 
